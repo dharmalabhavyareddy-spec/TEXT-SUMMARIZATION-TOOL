@@ -1,0 +1,58 @@
+# CELL 1: Imports + Load Model
+from transformers import pipeline, set_seed
+import torch
+
+print(f"Using device: {'cuda' if torch.cuda.is_available() else 'cpu'}")
+
+# Load text generation pipeline with GPT-2
+generator = pipeline('text-generation', model='gpt2', device=0 if torch.cuda.is_available() else -1)
+set_seed(42) # for reproducibility
+
+# CELL 2: Core Generation Function
+def generate_paragraph(topic, length=150, temperature=0.9, top_p=0.9):
+    """
+    Generate a coherent paragraph on a specific topic using GPT-2
+
+    Args:
+        topic: str - User prompt/topic to write about
+        length: int - Max tokens to generate
+        temperature: float - Creativity. 0.7=focused, 1.0=creative
+        top_p: float - Nucleus sampling. 0.9 is good balance
+
+    Returns: str - Generated paragraph
+    """
+    prompt = f"Write a detailed paragraph about {topic}:\n\n"
+
+    result = generator(
+        prompt,
+        max_length=len(prompt.split()) + length,
+        num_return_sequences=1,
+        temperature=temperature,
+        top_p=top_p,
+        do_sample=True,
+        pad_token_id=50256 # gpt2 EOS token
+    )
+
+    # Clean up: remove the original prompt from output
+    generated_text = result[0]['generated_text']
+    paragraph = generated_text.replace(prompt, "").strip()
+    return paragraph
+
+# CELL 3: Demo with User Prompts
+topics = [
+    "the impact of artificial intelligence on healthcare",
+    "climate change and renewable energy",
+    "the history of space exploration"
+]
+
+for topic in topics:
+    print(f"=== TOPIC: {topic.upper()} ===")
+    paragraph = generate_paragraph(topic, length=120)
+    print(paragraph)
+    print("\n" + "="*80 + "\n")
+
+# CELL 4: Interactive - Enter your own topic
+user_topic = "benefits of reading books" # Change this
+output = generate_paragraph(user_topic, length=100, temperature=0.8)
+print(f"Generated paragraph on '{user_topic}':\n")
+print(output)
