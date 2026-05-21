@@ -1,0 +1,40 @@
+import torch
+import librosa
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+
+# Load model + processor once at startup
+print("Loading Wav2Vec2 model...")
+MODEL_ID = "facebook/wav2vec2-base-960h"
+processor = Wav2Vec2Processor.from_pretrained(MODEL_ID)
+model = Wav2Vec2ForCTC.from_pretrained(MODEL_ID)
+print("Model loaded.")
+
+def transcribe_clip_w2v(audio_file_path):
+    """
+    Transcribe using Wav2Vec2. Auto-converts audio to 16kHz mono.
+    Works best with clear speech, 3-15s clips.
+    """
+    # Load audio and resample to 16kHz
+    print(f"Loading {audio_file_path}...")
+    speech, sr = librosa.load(audio_file_path, sr=16000, mono=True)
+
+    # Preprocess audio
+    input_values = processor(speech, sampling_rate=16000, return_tensors="pt").input_values
+
+    # Run inference
+    print("Running model inference...")
+    with torch.no_grad():
+        logits = model(input_values).logits
+
+    # Decode to text
+    predicted_ids = torch.argmax(logits, dim=-1)
+    transcription = processor.batch_decode(predicted_ids)[0]
+
+    return transcription.lower()
+
+if __name__ == "__main__":
+    file_path = "test_clip.wav"
+    result = transcribe_clip_w2v(file_path)
+    print("\n--- TRANSCRIPTION ---")
+    print(result)
+    print("---------------------")
